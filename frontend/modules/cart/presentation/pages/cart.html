@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Cart - Shop</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/styles/variables.css">
+  <link rel="stylesheet" href="/styles/reset.css">
+  <link rel="stylesheet" href="/styles/typography.css">
+  <link rel="stylesheet" href="/styles/components.css">
+  <link rel="stylesheet" href="/styles/layout.css">
+  <link rel="stylesheet" href="/modules/cart/presentation/styles/cart.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-content">
+      <a href="/index.html" class="logo">Shop</a>
+
+      <nav class="nav">
+        <ul class="nav-list">
+          <li><a href="/modules/catalog/presentation/pages/catalog.html" class="nav-link">Products</a></li>
+          <li><a href="/modules/cart/presentation/pages/cart.html" class="nav-link active">Cart</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div id="cart-badge-container"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="container">
+      <!-- Page Title -->
+      <h1>Shopping Cart</h1>
+
+      <!-- Loading State -->
+      <div class="loading-state" style="display: none;">
+        <div class="spinner spinner-medium"></div>
+        <p class="loading-text">Loading cart...</p>
+      </div>
+
+      <!-- Error State -->
+      <div class="error-state" style="display: none;">
+        <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <h2 class="error-title">Failed to Load Cart</h2>
+        <p class="error-message">An error occurred while loading your cart. Please try again.</p>
+        <div class="error-actions">
+          <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+        </div>
+      </div>
+
+      <!-- Cart Content -->
+      <div id="cart-content" class="cart-content" style="display: none;">
+        <div class="cart-items" id="cart-items"></div>
+        <div class="cart-summary" id="cart-summary"></div>
+      </div>
+
+      <!-- Empty Cart -->
+      <div id="empty-cart" class="empty-cart" style="display: none;">
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <h2 class="empty-state-title">Your Cart is Empty</h2>
+        <p class="empty-state-description">Looks like you haven't added any items to your cart yet.</p>
+        <a href="/modules/catalog/presentation/pages/catalog.html" class="btn btn-primary">Start Shopping</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Cart Handler (global) -->
+  <script type="module" src="/core/cart-handler.js"></script>
+
+  <!-- Scripts -->
+  <script type="module" src="/modules/cart/presentation/controllers/cart.controller.js"></script>
+
+  <!-- Cart Badge Script -->
+  <script type="module">
+    import eventBus from '/core/event-bus.js';
+
+    const container = document.getElementById('cart-badge-container');
+
+    eventBus.subscribe('cart:count-updated', (data) => {
+      updateCartBadge(data.count);
+    });
+
+    eventBus.publish('cart:request-count');
+
+    function updateCartBadge(count) {
+      container.innerHTML = `
+        <a href="/modules/cart/presentation/pages/cart.html" class="btn btn-ghost btn-icon cart-badge" style="position: relative;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          ${count > 0 ? `<span class="cart-badge-count">${count}</span>` : ''}
+        </a>
+      `;
+    }
+  </script>
+</body>
+</html>
