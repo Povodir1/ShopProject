@@ -72,10 +72,20 @@ class ProductService:
             limit=filters.limit,
             offset=filters.offset,
             category_id=filters.category_id,
+            search_query=filters.search_query,
+            price_min=filters.price_min,
+            price_max=filters.price_max,
+            in_stock=filters.in_stock,
+            order_by=filters.order_by,
+            order_dir=filters.order_dir,
         )
 
         total = await self._product_repository.count(
-            category_id=filters.category_id
+            category_id=filters.category_id,
+            search_query=filters.search_query,
+            price_min=filters.price_min,
+            price_max=filters.price_max,
+            in_stock=filters.in_stock,
         )
 
         return ProductListDTO(

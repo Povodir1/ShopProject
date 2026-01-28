@@ -38,14 +38,26 @@ class IProductRepository(ABC):
         limit: int = 100,
         offset: int = 0,
         category_id: Optional[UUID] = None,
+        search_query: Optional[str] = None,
+        price_min: Optional[float] = None,
+        price_max: Optional[float] = None,
+        in_stock: bool = False,
+        order_by: str = "created_at",
+        order_dir: str = "desc",
     ) -> list[Product]:
         """
-        Get all products with optional filtering.
+        Get all products with optional filtering and sorting.
 
         Args:
             limit: Maximum number of products to return
             offset: Number of products to skip
             category_id: Filter by category ID
+            search_query: Search by name or description
+            price_min: Minimum price filter
+            price_max: Maximum price filter
+            in_stock: Only show in-stock items
+            order_by: Sort field
+            order_dir: Sort direction
 
         Returns:
             List of products
@@ -73,12 +85,23 @@ class IProductRepository(ABC):
         pass
 
     @abstractmethod
-    async def count(self, category_id: Optional[UUID] = None) -> int:
+    async def count(
+        self,
+        category_id: Optional[UUID] = None,
+        search_query: Optional[str] = None,
+        price_min: Optional[float] = None,
+        price_max: Optional[float] = None,
+        in_stock: bool = False,
+    ) -> int:
         """
         Count products with optional filtering.
 
         Args:
             category_id: Filter by category ID
+            search_query: Search by name or description
+            price_min: Minimum price filter
+            price_max: Maximum price filter
+            in_stock: Only count in-stock items
 
         Returns:
             Number of products

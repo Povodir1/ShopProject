@@ -268,6 +268,13 @@ export class ProductFilterComponent {
    * Apply filters
    */
   applyFilters() {
+    // Don't apply if min > max
+    if (this.filters.priceMin !== null &&
+        this.filters.priceMax !== null &&
+        this.filters.priceMin > this.filters.priceMax) {
+      return;
+    }
+
     eventBus.publish('catalog:filter-changed', {
       priceRange: {
         min: this.filters.priceMin,

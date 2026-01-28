@@ -7,7 +7,7 @@ Implements repository interfaces using SQLAlchemy.
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -58,29 +58,81 @@ class SQLAlchemyProductRepository(IProductRepository):
         limit: int = 100,
         offset: int = 0,
         category_id: Optional[UUID] = None,
+        search_query: Optional[str] = None,
+        price_min: Optional[float] = None,
+        price_max: Optional[float] = None,
+        in_stock: bool = False,
+        order_by: str = "created_at",
+        order_dir: str = "desc",
     ) -> list[Product]:
         """
-        Get all products with optional filtering.
+        Get all products with optional filtering and sorting.
 
         Args:
             limit: Maximum number of products to return
             offset: Number of products to skip
             category_id: Filter by category ID
+            search_query: Search by name or description
+            price_min: Minimum price filter
+            price_max: Maximum price filter
+            in_stock: Only show in-stock items
+            order_by: Sort field
+            order_dir: Sort direction
 
         Returns:
             List of products
         """
-        query = select(ProductORM).order_by(ProductORM.name)
+        query = select(ProductORM)
 
+        # Apply filters
         if category_id is not None:
             query = query.where(ProductORM.category_id == str(category_id))
 
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.where(
+                or_(
+                    ProductORM.name.ilike(search_pattern),
+                    ProductORM.description.ilike(search_pattern),
+                )
+            )
+
+        if price_min is not None:
+            # Price is stored as integer (cents)
+            min_cents = int(price_min * 100)
+            query = query.where(ProductORM.price >= min_cents)
+
+        if price_max is not None:
+            # Price is stored as integer (cents)
+            max_cents = int(price_max * 100)
+            query = query.where(ProductORM.price <= max_cents)
+
+        if in_stock:
+            query = query.where(ProductORM.stock > 0)
+
+        # Apply sorting
+        order_column = self._get_order_column(order_by)
+        if order_dir == "desc":
+            query = query.order_by(order_column.desc())
+        else:
+            query = query.order_by(order_column.asc())
+
+        # Apply pagination
         query = query.limit(limit).offset(offset)
 
         result = await self._session.execute(query)
         orm_products = result.scalars().all()
 
         return [self._to_entity(p) for p in orm_products]
+
+    def _get_order_column(self, order_by: str):
+        """Get SQLAlchemy column for sorting."""
+        if order_by == "name":
+            return ProductORM.name
+        elif order_by == "price":
+            return ProductORM.price
+        else:  # created_at
+            return ProductORM.created_at
 
     async def search(
         self,
@@ -117,22 +169,52 @@ class SQLAlchemyProductRepository(IProductRepository):
 
         return [self._to_entity(p) for p in orm_products]
 
-    async def count(self, category_id: Optional[UUID] = None) -> int:
+    async def count(
+        self,
+        category_id: Optional[UUID] = None,
+        search_query: Optional[str] = None,
+        price_min: Optional[float] = None,
+        price_max: Optional[float] = None,
+        in_stock: bool = False,
+    ) -> int:
         """
         Count products with optional filtering.
 
         Args:
             category_id: Filter by category ID
+            search_query: Search by name or description
+            price_min: Minimum price filter
+            price_max: Maximum price filter
+            in_stock: Only count in-stock items
 
         Returns:
             Number of products
         """
-        from sqlalchemy import func
-
         query = select(func.count(ProductORM.id))
 
+        # Apply filters (same as get_all)
         if category_id is not None:
             query = query.where(ProductORM.category_id == str(category_id))
+
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.where(
+                or_(
+                    ProductORM.name.ilike(search_pattern),
+                    ProductORM.description.ilike(search_pattern),
+                )
+            )
+
+        if price_min is not None:
+            min_cents = int(price_min * 100)
+            query = query.where(ProductORM.price >= min_cents)
+
+        if price_max is not None:
+            max_cents = int(price_max * 100)
+            query = query.where(ProductORM.price <= max_cents)
+
+        if in_stock:
+            query = query.where(ProductORM.stock > 0)
 
         result = await self._session.execute(query)
         return result.scalar() or 0

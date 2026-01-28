@@ -56,17 +56,17 @@ export class FilterVO {
 
     // Validate price range
     if (this.priceRange) {
-      if (this.priceRange.min !== undefined && this.priceRange.min < 0) {
+      if (this.priceRange.min != null && this.priceRange.min < 0) {
         throw new Error('Minimum price cannot be negative');
       }
 
-      if (this.priceRange.max !== undefined && this.priceRange.max < 0) {
+      if (this.priceRange.max != null && this.priceRange.max < 0) {
         throw new Error('Maximum price cannot be negative');
       }
 
       if (
-        this.priceRange.min !== undefined &&
-        this.priceRange.max !== undefined &&
+        this.priceRange.min != null &&
+        this.priceRange.max != null &&
         this.priceRange.min > this.priceRange.max
       ) {
         throw new Error('Minimum price cannot be greater than maximum price');
@@ -104,11 +104,11 @@ export class FilterVO {
     }
 
     if (this.priceRange) {
-      if (this.priceRange.min !== undefined) {
+      if (this.priceRange.min != null) {
         params.price_min = this.priceRange.min;
       }
 
-      if (this.priceRange.max !== undefined) {
+      if (this.priceRange.max != null) {
         params.price_max = this.priceRange.max;
       }
     }

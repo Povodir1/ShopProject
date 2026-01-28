@@ -94,11 +94,23 @@ class ProductFilterDTO:
 
     Attributes:
         category_id: Filter by category
+        search_query: Search by name or description
+        price_min: Minimum price filter
+        price_max: Maximum price filter
+        in_stock: Only show in-stock items
+        order_by: Sort field (name, price, created_at)
+        order_dir: Sort direction (asc, desc)
         limit: Maximum results
         offset: Results offset
     """
 
     category_id: Optional[UUID] = None
+    search_query: Optional[str] = None
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    in_stock: bool = False
+    order_by: str = "created_at"
+    order_dir: str = "desc"
     limit: int = 100
     offset: int = 0
 
@@ -110,3 +122,25 @@ class ProductFilterDTO:
             self.limit = 1000
         if self.offset < 0:
             self.offset = 0
+
+        # Validate order_by
+        valid_fields = {"name", "price", "created_at"}
+        if self.order_by not in valid_fields:
+            self.order_by = "created_at"
+
+        # Validate order_dir
+        if self.order_dir not in {"asc", "desc"}:
+            self.order_dir = "desc"
+
+        # Validate price range
+        if self.price_min is not None and self.price_min < 0:
+            self.price_min = None
+        if self.price_max is not None and self.price_max < 0:
+            self.price_max = None
+        if (
+            self.price_min is not None
+            and self.price_max is not None
+            and self.price_min > self.price_max
+        ):
+            # Swap if min > max
+            self.price_min, self.price_max = self.price_max, self.price_min

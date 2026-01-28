@@ -103,7 +103,7 @@ export class CartController {
   /**
    * Render cart
    */
-  render() {
+  async render() {
     if (!this.cart) {
       this.showEmptyCart();
       return;
@@ -115,41 +115,84 @@ export class CartController {
     }
 
     this.hideEmptyCart();
-    this.renderCartItems();
+    await this.renderCartItems();
     this.renderCartSummary();
   }
 
   /**
    * Render cart items
    */
-  renderCartItems() {
+  async renderCartItems() {
     if (!this.elements.cartItems) return;
 
     this.elements.cartItems.innerHTML = '';
 
-    this.cart.getAllItems().forEach(item => {
-      const itemElement = this.createCartItemElement(item);
+    const items = this.cart.getAllItems();
+
+    // Load product data for all items
+    const productData = await this.loadProductsData(items);
+
+    items.forEach(item => {
+      const product = productData[item.productId] || {};
+      const itemElement = this.createCartItemElement(item, product);
       this.elements.cartItems.appendChild(itemElement);
     });
   }
 
   /**
+   * Load product data for cart items
+   * @param {Array<CartItem>} items - Cart items
+   * @returns {Promise<Object>} Map of product_id -> product data
+   */
+  async loadProductsData(items) {
+    const productMap = {};
+
+    console.log('Loading products for items:', items);
+
+    // Fetch data for each unique product
+    for (const item of items) {
+      try {
+        console.log(`Fetching product: ${item.productId}`);
+        const response = await fetch(`http://localhost:8000/api/products/${item.productId}`);
+        console.log(`Response status: ${response.status}`);
+
+        if (response.ok) {
+          const product = await response.json();
+          console.log('Product data:', product);
+          productMap[item.productId] = product;
+        } else {
+          console.error(`Failed to load product ${item.productId}: ${response.status}`);
+        }
+      } catch (error) {
+        console.error(`Failed to load product ${item.productId}:`, error);
+      }
+    }
+
+    console.log('Product map:', productMap);
+    return productMap;
+  }
+
+  /**
    * Create cart item element
    * @param {CartItem} item - Cart item entity
+   * @param {Object} product - Product data from API
    * @returns {HTMLElement} Item element
    */
-  createCartItemElement(item) {
+  createCartItemElement(item, product = {}) {
     const div = document.createElement('div');
     div.className = 'cart-item';
     div.dataset.itemId = item.id;
 
+    const productName = product.name || `Product (${item.productId.substring(0, 8)}...)`;
+    const productImage = product.image_url || `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect fill='%231e293b' width='80' height='80'/%3E%3Ctext fill='%2394a3b8' font-family='sans-serif' font-size='12' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EProduct%3C/text%3E%3C/svg%3E`;
+
     div.innerHTML = `
       <div class="cart-item-image">
-        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect fill='%231e293b' width='80' height='80'/%3E%3Ctext fill='%2394a3b8' font-family='sans-serif' font-size='12' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EProduct%3C/text%3E%3C/svg%3E" alt="Product">
+        <img src="${productImage}" alt="${productName}">
       </div>
 
       <div class="cart-item-info">
-        <h3 class="cart-item-name">Product ID: ${item.productId.substring(0, 8)}...</h3>
+        <h3 class="cart-item-name">${productName}</h3>
         <p class="cart-item-price">${item.getFormattedPrice()} each</p>
       </div>
 

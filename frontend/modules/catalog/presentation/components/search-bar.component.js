@@ -5,7 +5,7 @@
 
 import eventBus from '/core/event-bus.js';
 import config from '/core/config.js';
-import storage from "/core/shared/storage.js';
+import storage from '/core/shared/storage.js';
 
 export class SearchBarComponent {
   /**

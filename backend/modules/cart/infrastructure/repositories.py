@@ -98,6 +98,9 @@ class SQLAlchemyCartRepository(ICartRepository):
             )
             self._session.add(orm_item)
 
+        # Commit changes to database
+        await self._session.commit()
+
         # Refresh to load relationships
         await self._session.refresh(orm_cart, attribute_names=["items"])
 

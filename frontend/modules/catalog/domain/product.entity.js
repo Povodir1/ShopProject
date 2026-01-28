@@ -3,7 +3,7 @@
  * Domain entity for products
  */
 
-import { formatPrice } from "/core/shared/formatters.js';
+import { formatPrice } from '/core/shared/formatters.js';
 
 export class Product {
   /**

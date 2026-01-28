@@ -3,7 +3,7 @@
  * Infrastructure layer for category API communication
  */
 
-import api from "/core/shared/api.js';
+import api from '/core/shared/api.js';
 
 export class CategoryAPI {
   /**

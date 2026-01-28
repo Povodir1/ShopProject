@@ -1,6 +1,6 @@
 /**
  * Category Tree Component
- * Displays category tree navigation
+ * Displays category dropdown selector
  */
 
 import eventBus from '/core/event-bus.js';
@@ -16,211 +16,101 @@ export class CategoryTreeComponent {
     this.container = container;
     this.options = {
       selectedCategoryId: null,
-      expandAll: false,
       showProductCount: false,
       ...options
     };
     this.element = null;
-    this.expandedCategories = new Set();
   }
 
   /**
-   * Render the category tree
-   * @returns {HTMLElement} Tree element
+   * Render the category dropdown
+   * @returns {HTMLElement} Select element
    */
   render() {
     const wrapper = document.createElement('div');
-    wrapper.className = 'category-tree';
+    wrapper.className = 'category-dropdown';
+
+    const label = document.createElement('label');
+    label.className = 'category-dropdown-label';
+    label.textContent = 'Category';
+    label.setAttribute('for', 'category-select');
+
+    const select = document.createElement('select');
+    select.id = 'category-select';
+    select.className = 'category-dropdown-select form-select';
 
     if (this.categories.length === 0) {
-      wrapper.innerHTML = '<p class="text-muted body-small">No categories available</p>';
-      this.element = wrapper;
-      return wrapper;
+      const option = document.createElement('option');
+      option.textContent = 'No categories available';
+      option.disabled = true;
+      select.appendChild(option);
+    } else {
+      // Add "All Categories" option
+      const allOption = document.createElement('option');
+      allOption.value = '';
+      allOption.textContent = 'All Categories';
+      allOption.selected = !this.options.selectedCategoryId;
+      select.appendChild(allOption);
+
+      // Add categories with nesting
+      this.categories.forEach(category => {
+        this.renderCategoryOptions(category, select, 0);
+      });
     }
 
-    const list = document.createElement('ul');
-    list.className = 'category-tree-list';
-    list.setAttribute('role', 'tree');
+    wrapper.appendChild(label);
+    wrapper.appendChild(select);
 
-    this.categories.forEach(category => {
-      list.appendChild(this.renderCategory(category, 0));
-    });
+    // Attach event listener
+    select.addEventListener('change', () => this.onCategoryChange(select));
 
-    // Add "All Categories" option at the top
-    const allItem = this.renderAllCategoriesItem();
-    list.insertBefore(allItem, list.firstChild);
-
-    wrapper.appendChild(list);
-
-    // Add clear filter button if category is selected
-    if (this.options.selectedCategoryId) {
-      const clearBtn = this.renderClearButton();
-      wrapper.appendChild(clearBtn);
-    }
-
-    this.attachEventListeners(wrapper);
     this.element = wrapper;
     return wrapper;
   }
 
   /**
-   * Render "All Categories" item
-   * @returns {HTMLElement} List item
-   */
-  renderAllCategoriesItem() {
-    const li = document.createElement('li');
-    li.className = 'category-tree-item';
-
-    const button = document.createElement('button');
-    button.className = `category-tree-button ${!this.options.selectedCategoryId ? 'active' : ''}`;
-    button.setAttribute('role', 'treeitem');
-    button.setAttribute('data-category-id', '');
-    button.innerHTML = `
-      <span class="category-tree-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7"></rect>
-          <rect x="14" y="3" width="7" height="7"></rect>
-          <rect x="14" y="14" width="7" height="7"></rect>
-          <rect x="3" y="14" width="7" height="7"></rect>
-        </svg>
-      </span>
-      <span class="category-tree-label">All Categories</span>
-    `;
-
-    li.appendChild(button);
-    return li;
-  }
-
-  /**
-   * Render a single category
+   * Render category options recursively
    * @param {Category} category - Category entity
+   * @param {HTMLElement} select - Select element
    * @param {number} level - Nesting level
-   * @returns {HTMLElement} List item
    */
-  renderCategory(category, level) {
-    const li = document.createElement('li');
-    li.className = 'category-tree-item';
-    li.setAttribute('role', 'treeitem');
-    li.setAttribute('aria-level', level + 1);
+  renderCategoryOptions(category, select, level) {
+    const option = document.createElement('option');
+    option.value = category.id;
 
-    const hasChildren = category.hasChildren();
-    const isExpanded = this.expandedCategories.has(category.id) || this.options.expandAll;
-    const isSelected = this.options.selectedCategoryId === category.id;
+    // Add indentation for nested categories
+    const indent = '\u00A0\u00A0\u00A0'.repeat(level);
+    option.textContent = `${indent}${category.name}`;
 
-    const button = document.createElement('button');
-    button.className = `category-tree-button ${isSelected ? 'active' : ''}`;
-    button.setAttribute('data-category-id', category.id);
-    button.setAttribute('aria-expanded', hasChildren ? String(isExpanded) : 'false');
-
-    // Add expand/collapse icon if has children
-    let iconHtml = '';
-    if (hasChildren) {
-      iconHtml = `
-        <span class="category-tree-expand ${isExpanded ? 'expanded' : ''}">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </span>
-      `;
-    } else {
-      iconHtml = `
-        <span class="category-tree-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-          </svg>
-        </span>
-      `;
+    if (this.options.selectedCategoryId === category.id) {
+      option.selected = true;
     }
 
-    button.innerHTML = `
-      ${iconHtml}
-      <span class="category-tree-label">${this.escapeHtml(category.name)}</span>
-    `;
+    select.appendChild(option);
 
-    li.appendChild(button);
-
-    // Render children if category has children and is expanded
-    if (hasChildren && isExpanded) {
-      const childList = document.createElement('ul');
-      childList.className = 'category-tree-children';
-      childList.setAttribute('role', 'group');
-
+    // Render children
+    if (category.hasChildren()) {
       category.children.forEach(child => {
-        childList.appendChild(this.renderCategory(child, level + 1));
+        this.renderCategoryOptions(child, select, level + 1);
       });
-
-      li.appendChild(childList);
     }
-
-    return li;
   }
 
   /**
-   * Render clear filter button
-   * @returns {HTMLElement} Button element
+   * Handle category change
+   * @param {HTMLSelectElement} select - Select element
    */
-  renderClearButton() {
-    const button = document.createElement('button');
-    button.className = 'btn btn-ghost btn-small category-tree-clear';
-    button.textContent = 'Clear Filter';
-    button.addEventListener('click', () => this.onClearFilter());
-    return button;
-  }
-
-  /**
-   * Attach event listeners
-   * @param {HTMLElement} wrapper - Wrapper element
-   */
-  attachEventListeners(wrapper) {
-    wrapper.querySelectorAll('.category-tree-button').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const categoryId = button.getAttribute('data-category-id');
-        this.onCategoryClick(categoryId, button);
-      });
-    });
-  }
-
-  /**
-   * Handle category click
-   * @param {string} categoryId - Category ID (empty for "All Categories")
-   * @param {HTMLElement} button - Clicked button element
-   */
-  onCategoryClick(categoryId, button) {
+  onCategoryChange(select) {
+    const categoryId = select.value || null;
     const category = this.findCategory(categoryId);
 
-    // If category has children, toggle expand/collapse
-    if (category && category.hasChildren()) {
-      if (this.expandedCategories.has(categoryId)) {
-        this.expandedCategories.delete(categoryId);
-      } else {
-        this.expandedCategories.add(categoryId);
-      }
-    }
-
-    // Update selection
-    this.options.selectedCategoryId = categoryId || null;
+    this.options.selectedCategoryId = categoryId;
 
     // Publish event
     eventBus.publish('catalog:category-changed', {
-      categoryId: categoryId || null,
-      category: category || null
+      categoryId: categoryId,
+      category: category
     });
-
-    // Re-render
-    this.update();
-  }
-
-  /**
-   * Handle clear filter click
-   */
-  onClearFilter() {
-    this.options.selectedCategoryId = null;
-    eventBus.publish('catalog:category-changed', {
-      categoryId: null,
-      category: null
-    });
-    this.update();
   }
 
   /**
@@ -264,23 +154,7 @@ export class CategoryTreeComponent {
    */
   setSelectedCategory(categoryId) {
     this.options.selectedCategoryId = categoryId;
-
-    // Expand parent categories
-    if (categoryId) {
-      this.expandPathTo(categoryId);
-    }
-
     this.update();
-  }
-
-  /**
-   * Expand tree path to category
-   * @param {string} categoryId - Target category ID
-   */
-  expandPathTo(categoryId) {
-    // This would need parent references to work properly
-    // For now, we'll just expand all
-    this.options.expandAll = true;
   }
 
   /**
@@ -295,17 +169,6 @@ export class CategoryTreeComponent {
   }
 
   /**
-   * Escape HTML to prevent XSS
-   * @param {string} text - Text to escape
-   * @returns {string} Escaped text
-   */
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  /**
    * Destroy the component
    */
   destroy() {
@@ -313,7 +176,6 @@ export class CategoryTreeComponent {
       this.element.parentNode.removeChild(this.element);
     }
     this.element = null;
-    this.expandedCategories.clear();
   }
 }
 

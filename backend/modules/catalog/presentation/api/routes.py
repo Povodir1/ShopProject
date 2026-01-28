@@ -70,12 +70,40 @@ async def get_category_service(
     response_model=ProductListResponse,
     status_code=status.HTTP_200_OK,
     summary="List all products",
-    description="Get a paginated list of products with optional category filtering",
+    description="Get a paginated list of products with optional filtering and sorting",
 )
 async def list_products(
     category_id: Optional[str] = Query(
         default=None,
         description="Filter by category ID",
+    ),
+    q: Optional[str] = Query(
+        default=None,
+        description="Search query for name or description",
+        min_length=2,
+    ),
+    price_min: Optional[float] = Query(
+        default=None,
+        description="Minimum price filter",
+        ge=0,
+    ),
+    price_max: Optional[float] = Query(
+        default=None,
+        description="Maximum price filter",
+        ge=0,
+    ),
+    in_stock: bool = Query(
+        default=False,
+        description="Only show items in stock",
+    ),
+    order_by: str = Query(
+        default="created_at",
+        description="Sort field (name, price, created_at)",
+    ),
+    order_dir: str = Query(
+        default="desc",
+        description="Sort direction (asc, desc)",
+        regex="^(asc|desc)$",
     ),
     limit: int = Query(
         default=100,
@@ -91,10 +119,16 @@ async def list_products(
     service: ProductService = Depends(get_product_service),
 ) -> ProductListResponse:
     """
-    List all products with optional filtering.
+    List all products with optional filtering and sorting.
 
     Args:
         category_id: Optional category filter
+        q: Optional search query
+        price_min: Optional minimum price
+        price_max: Optional maximum price
+        in_stock: Filter in-stock items only
+        order_by: Sort field
+        order_dir: Sort direction
         limit: Page size
         offset: Page offset
         service: Product service
@@ -104,6 +138,12 @@ async def list_products(
     """
     filters = ProductFilterDTO(
         category_id=UUID(category_id) if category_id else None,
+        search_query=q,
+        price_min=price_min,
+        price_max=price_max,
+        in_stock=in_stock,
+        order_by=order_by,
+        order_dir=order_dir,
         limit=limit,
         offset=offset,
     )
