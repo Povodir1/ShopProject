@@ -1,0 +1,196 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # FRONTEND SERVICE
+  # ============================================
+  frontend:
+    image: shop-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      - frontend-network
+    deploy:
+      mode: replicated
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      placement:
+        constraints:
+          - node.labels.type == app
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    environment:
+      - NGINX_HOST=_
+      - NGINX_PORT=80
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: ingress
+
+  # ============================================
+  # BACKEND SERVICE
+  # ============================================
+  backend:
+    image: shop-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    networks:
+      - frontend-network
+      - backend-network
+    environment:
+      - DB_NAME=${DB_NAME:-e_shop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - ALLOWED_ORIGINS=*
+      - DEBUG=${DEBUG:-False}
+      - HOST=0.0.0.0
+      - PORT=8000
+    deploy:
+      mode: replicated
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      placement:
+        constraints:
+          - node.labels.type == app
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - db
+
+  # ============================================
+  # DATABASE SERVICE
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    networks:
+      - backend-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME:-e_shop}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================
+  # DB MIGRATIONS (одноразовый job)
+  # ============================================
+  db-migrate:
+    image: shop-backend:latest
+    networks:
+      - backend-network
+    environment:
+      - DB_NAME=${DB_NAME:-e_shop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        until PGPASSWORD=$$DB_PASSWORD psql -h $$DB_HOST -U $$DB_USER -d $$DB_NAME -c 'SELECT 1'; do
+          echo 'Database is unavailable - sleeping'
+          sleep 2
+        done &&
+        echo 'Database is up - applying migrations' &&
+        alembic upgrade head &&
+        echo 'Migrations completed successfully'
+      "
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: none
+    depends_on:
+      - db
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  frontend-network:
+    driver: overlay
+    driver_opts:
+      encrypted: "true"
+    attachable: true
+
+  backend-network:
+    driver: overlay
+    driver_opts:
+      encrypted: "true"
+    internal: true
+    attachable: true
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  postgres_data:
+    driver: local

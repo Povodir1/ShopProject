@@ -153,7 +153,7 @@ export class CartController {
     for (const item of items) {
       try {
         console.log(`Fetching product: ${item.productId}`);
-        const response = await fetch(`http://localhost:8000/api/products/${item.productId}`);
+        const response = await fetch(`http://192.168.0.107:8000/api/products/${item.productId}`);
         console.log(`Response status: ${response.status}`);
 
         if (response.ok) {

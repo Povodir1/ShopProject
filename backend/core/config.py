@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Database
     DB_NAME: str = "e_shop"
     DB_USER: str = "postgres"
-    DB_PASSWORD: str = "1111"
+    DB_PASSWORD: str = ""  # MUST be set via environment variable
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
 

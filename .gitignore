@@ -1,0 +1,23 @@
+# Environment files with secrets
+.env
+.env.swarm
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+*.tar.gz
+docker-compose.override.yml
+
+# Logs
+*.log

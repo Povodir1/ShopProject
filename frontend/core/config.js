@@ -5,7 +5,7 @@
 
 const config = {
   // API Configuration
-  apiBaseUrl: 'http://localhost:8000/api',
+  apiBaseUrl: 'http://192.168.0.107:8000/api',
   apiTimeout: 10000,
   apiPrefix: '/api',
 
